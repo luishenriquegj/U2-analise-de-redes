@@ -1,19 +1,23 @@
 # app.py
+
 import streamlit as st
 import networkx as nx
 from pyvis.network import Network
 import streamlit.components.v1 as components 
 import pandas as pd
+import os
 import matplotlib.pyplot as plt 
+from collections import Counter
+import community as community_louvain 
 
 # Importa as funções do nosso módulo data_loader
 from data_loader import build_network_from_wikipedia
 
-# --- Funções de Visualização e Análise (visualize_network permanece a mesma) ---
 
 def visualize_network(graph, seed_page_title="", graph_type="full"):
     """
     Gera o HTML da visualização interativa da rede usando Pyvis.
+    Detecta comunidades com o algoritmo Louvain e colore os nós de acordo.
     Permite visualizar o grafo completo, o maior componente conectado, ou nós de alto grau.
     Retorna a string HTML para ser exibida pelo Streamlit.
     """
@@ -29,81 +33,55 @@ def visualize_network(graph, seed_page_title="", graph_type="full"):
         if nx.is_empty(graph):
             st.warning("O grafo está vazio. Não é possível encontrar componentes conectados.")
             return "" 
-
         connected_comps_list = list(nx.connected_components(graph))
-
         if not connected_comps_list:
             st.warning("Nenhum componente conectado encontrado no grafo.")
             return "" 
-
         largest_cc = max(connected_comps_list, key=len)
-
         display_graph = graph.subgraph(largest_cc).copy()
         st.info(f"Visualizando o **Maior Componente Conectado** ({len(largest_cc)} nós).")
     elif graph_type == "high_degree_nodes":
         if nx.is_empty(graph):
             st.warning("O grafo está vazio. Não é possível encontrar nós de alto grau.")
             return "" 
-
         degree_dict = dict(graph.degree())
         num_high_degree_nodes = min(max(5, int(len(graph.nodes) * 0.10)), 50)
-        
         top_nodes = sorted(degree_dict.items(), key=lambda item: item[1], reverse=True)[:num_high_degree_nodes]
         high_degree_node_names = [node for node, degree in top_nodes]
-        
         nodes_for_subgraph = set(high_degree_node_names)
         for node in high_degree_node_names:
             nodes_for_subgraph.update(graph.neighbors(node))
-            
         display_graph = graph.subgraph(nodes_for_subgraph).copy()
-
         st.info(f"Visualizando um subgrafo focado nos **{len(high_degree_node_names)} nós de maior grau** e seus vizinhos diretos ({len(display_graph.nodes)} nós no total).")
     
     if not display_graph.nodes:
-        st.warning("O subgrafo selecionado está vazio. Tente ajustar os parâmetros de rede ou selecione 'Grafo Completo'.")
+        st.warning("O subgrafo selecionado está vazio. Tente ajustar os parâmetros ou selecione 'Grafo Completo'.")
         return "" 
+
+    # --- DETECÇÃO DE COMUNIDADES  ---
+    partition = {}
+    if display_graph.number_of_nodes() > 0:
+        # Roda o algoritmo Louvain para encontrar a melhor partição (comunidades)
+        partition = community_louvain.best_partition(display_graph, random_state=42)
+        num_communities = len(set(partition.values()))
+        st.success(f"utilizando o algoritmo Louvian, foram detectadas **{num_communities} comunidades** na rede")
+    # --- FIM DA DETECÇÃO ---
 
     net = Network(notebook=True, height="750px", width="100%", directed=False, cdn_resources='remote')
 
     for node, attrs in display_graph.nodes(data=True):
+        community_id = partition.get(node, 0) # Pega o ID da comunidade do nó
+        
         size = 20 if node == seed_page_title else 10
-        title_text = f"Nó: {node}\nGrau: {display_graph.degree(node)}"
-        net.add_node(node, label=attrs.get('label', node), title=title_text, size=size)
+        title_text = f"Nó: {node}\nGrau: {display_graph.degree(node)}\nComunidade: {community_id}"
+        
+        net.add_node(node, label=attrs.get('label', node), title=title_text, size=size, group=community_id)
 
     for u, v in display_graph.edges():
         net.add_edge(u, v)
 
     net.set_options("""
-    var options = {
-      "nodes": {
-        "font": {
-          "size": 12
-        }
-      },
-      "edges": {
-        "color": {
-          "inherit": true
-        },
-        "smooth": {
-          "forceDirection": "none"
-        }
-      },
-      "physics": {
-        "enabled": true,
-        "barnesHut": {
-          "gravitationalConstant": -2000,
-          "centralGravity": 0.3,
-          "springLength": 95,
-          "springConstant": 0.04,
-          "damping": 0.09,
-          "avoidOverlap": 0
-        },
-        "maxVelocity": 50,
-        "minVelocity": 0.1,
-        "solver": "barnesHut",
-        "timestep": 0.35
-      }
-    }
+    var options = { "physics": { "barnesHut": { "gravitationalConstant": -4000, "springLength": 150 } } }
     """)
 
     try:
@@ -112,8 +90,8 @@ def visualize_network(graph, seed_page_title="", graph_type="full"):
     except Exception as e:
         st.error(f"Erro ao gerar o HTML da visualização da rede: {e}")
         return "" 
+    
 
-# A função analyze_network é atualizada para incluir as novas métricas de centralidade
 def analyze_network(graph):
     """
     Realiza e exibe a análise estatística e estrutural da rede completa,
@@ -153,7 +131,7 @@ def analyze_network(graph):
         st.markdown(f"**Coeficiente de Assortatividade de Grau:** `{assortativity:.4f}`")
         st.markdown("""
         A **assortatividade** mede a tendência de nós com graus semelhantes se conectarem.
-        - Um valor **positivo** indica que nós de alto grau tendem a se conectar com outros nós de alto grau (redes 'ricas ficam mais ricas').
+        - Um valor **positivo** indica que nós de alto grau tendem a se conectar com outros nós de alto grau (rede 'homofílica').
         - Um valor **negativo** indica que nós de alto grau tendem a se conectar com nós de baixo grau (redes 'centralizadas' ou 'estrela').
         - Um valor **próximo de zero** indica uma mistura aleatória.
         """)
@@ -171,15 +149,38 @@ def analyze_network(graph):
     else:
         st.info("Não é possível calcular o Coeficiente de Clustering para este grafo (poucos nós/arestas).")
 
+    # --- Coeficiente de Clustering Local ---
     st.markdown("---")
-    st.subheader("Componentes Conectados")
+    st.subheader("Análise de Clustering Local")
+    
+    if graph.number_of_nodes() > 2:
+        
+        node_list = sorted(list(graph.nodes())) # Ordena a lista para facilitar a busca
+        selected_node = st.selectbox(
+            "Escolha um nó para calcular seu Coeficiente de Clustering Local:", 
+            options=node_list
+        )
+
+        if selected_node:
+            # Calcula o coeficiente para o nó escolhido
+            local_clustering_coeff = nx.clustering(graph, selected_node)
+            st.markdown(f"**Coeficiente de Clustering para o nó '{selected_node}':** `{local_clustering_coeff:.4f}`")
+            st.markdown("""
+            Este valor mede a probabilidade de que dois vizinhos do nó selecionado também sejam vizinhos entre si. 
+            Em outras palavras, ele indica o quão "fechado" é o grupo de amigos diretos deste nó.
+            - Um valor próximo de **1** significa que a vizinhança do nó é muito unida, quase um "clique".
+            - Um valor próximo de **0** significa que os vizinhos do nó não se conectam entre si.
+            """)
+    else:
+        st.info("O cálculo de clustering local requer pelo menos 3 nós.")
     
     # Componentes Fracamente Conectados (Weakly Connected Components - WCC)
     num_wcc = nx.number_connected_components(graph) 
     st.markdown(f"**Número de Componentes Conectados (WCCs):** `{num_wcc}`")
     st.markdown("""
-    Um **Componente Conectado (WCC)** é um subgrafo onde cada nó pode ser alcançado a partir de qualquer outro nó dentro do mesmo subgrafo,
-    ignorando a direção das arestas. Para grafos não dirigidos, este é o conceito fundamental de conectividade.
+    Um **Componente Conectado** é um subgrafo onde cada nó pode ser alcançado a partir de qualquer outro. 
+    Como nossa rede é **não-dirigida** (as conexões não têm setas), este é o principal conceito de conectividade. 
+    Para este tipo de grafo, os "Componentes Conectados" são equivalentes aos **"Componentes Conectados Fracamente" (WCCs)** que existem em grafos dirigidos.
     """)
     if num_wcc > 0:
         largest_cc_size_for_wcc = max(len(c) for c in nx.connected_components(graph))
@@ -191,49 +192,117 @@ def analyze_network(graph):
     st.markdown("---")
     st.subheader("Distribuição de Grau da Rede")
 
-    if num_nodes > 0:
-        all_degrees = [degree for node, degree in graph.degree()]
+    
 
-        if all_degrees:
-            min_degree = min(all_degrees)
-            max_degree = max(all_degrees)
+    all_degrees = [degree for node, degree in graph.degree()]
 
-            # Ajuste dinâmico dos bins e ticks
-            if min_degree == max_degree: # Caso todos os nós tenham o mesmo grau
-                bins_range = [min_degree - 0.5, max_degree + 0.5]
-                tick_values = [min_degree]
-            elif max_degree - min_degree < 10: # Para poucos graus diferentes, mostrar todos
-                bins_range = range(min_degree, max_degree + 2)
-                tick_values = range(min_degree, max_degree + 1)
-            else: # Para uma ampla gama de graus, usar um intervalo para os ticks
-                bins_range = range(min_degree, max_degree + 2)
-                # Tenta exibir cerca de 10 ticks, arredondando o intervalo
-                ideal_num_ticks = 10
-                step = max(1, (max_degree - min_degree) // ideal_num_ticks)
-                tick_values = range(min_degree, max_degree + 1, step)
+# --- Distribuição de Grau ---
 
+    st.markdown("---")
+
+    st.subheader("Distribuição de Grau da Rede")
+
+
+    all_degrees = [degree for node, degree in graph.degree()]
+
+
+    if all_degrees:
+        min_degree = min(all_degrees)
+        max_degree = max(all_degrees)
+
+
+        if min_degree == max_degree:
+
+            bins_range = [min_degree - 0.5, max_degree + 0.5]
+            tick_values = [min_degree]
+
+        elif max_degree - min_degree < 10:
+
+            bins_range = range(min_degree, max_degree + 2)
+            tick_values = range(min_degree, max_degree + 1)
+
+        else:
+
+            bins_range = range(min_degree, max_degree + 2)
+            ideal_num_ticks = 10
+            step = max(1, (max_degree - min_degree) // ideal_num_ticks)
+            tick_values = range(min_degree, max_degree + 1, step)
 
             fig, ax = plt.subplots()
             ax.hist(all_degrees, bins=bins_range, edgecolor='black', align='left')
-            ax.set_title('Histograma da Distribuição de Grau')
+            ax.set_title('Histograma da Distribuição de Grau (Escala Logarítmica)')
+
             ax.set_xlabel('Grau do Nó')
-            ax.set_ylabel('Número de Nós')
+            ax.set_ylabel('Número de Nós (Escala Logarítmica)')
+
             ax.set_xticks(list(tick_values))
+            ax.set_yscale('log')
 
             st.pyplot(fig)
             plt.close(fig)
 
-            st.markdown("""
-            O **Histograma da Distribuição de Grau** mostra a frequência com que cada grau (número de conexões)
-            aparece na rede.
-            - Em redes como a Wikipedia (muitas vezes consideradas redes de mundo pequeno ou livres de escala),
-              é comum ver muitos nós com poucos graus e poucos nós (os "hubs") com graus muito altos,
-              resultando em uma distribuição com uma "cauda longa" para a direita.
-            """)
-        else:
-            st.info("Não há graus para plotar (grafo sem nós ou arestas).")
     else:
-        st.info("Não há nós na rede para calcular a distribuição de grau.")
+
+        print("Não há graus para plotar (grafo sem nós ou arestas).")
+
+
+        st.markdown("""
+
+        O **Histograma da Distribuição de Grau** mostra a frequência com que cada grau (número de conexões)
+
+        aparece na rede.
+
+        - Em redes como a Wikipedia (muitas vezes consideradas redes de mundo pequeno ou livres de escala),
+
+            é comum ver muitos nós com poucos graus e poucos nós (os "hubs") com graus muito altos,
+
+            resultando em uma distribuição com uma "cauda longa" para a direita.
+
+        """)      
+    # --- Diâmetro e Periferia ---
+    st.markdown("""
+    O **Histograma da Distribuição de Grau** mostra a frequência com que cada grau (número de conexões)
+    aparece na rede.
+    - Em redes como a Wikipedia (muitas vezes consideradas redes de mundo pequeno ou livres de escala),
+        é comum ver muitos nós com poucos graus e poucos nós (os "hubs") com graus muito altos,
+        resultando em uma distribuição com uma "cauda longa" para a direita.
+    """)
+    
+    if graph.number_of_nodes() > 0:
+        if nx.is_connected(graph):
+            component_to_analyze = graph
+            st.info("A rede é totalmente conectada. As métricas foram calculadas para o grafo completo.")
+        else:
+            st.warning("A rede não é conectada. As métricas abaixo foram calculadas para o Maior Componente Conectado.")
+            
+            # Pega o maior componente conectado
+            largest_cc_nodes = max(nx.connected_components(graph), key=len)
+            component_to_analyze = graph.subgraph(largest_cc_nodes)
+
+        try:
+            # Calcular o diâmetro
+            diameter = nx.diameter(component_to_analyze)
+            st.markdown(f"**Diâmetro da Rede:** `{diameter}`")
+            st.markdown("""
+            O **diâmetro** é a maior "distância mais curta" entre quaisquer dois nós na rede. 
+            Ele nos dá uma ideia do "quão grande" a rede é em termos de passos para atravessá-la.
+            """)
+
+            # Calcular a periferia
+            periphery = nx.periphery(component_to_analyze)
+            st.markdown(f"**Nós na Periferia (amostra):**")
+            # Mostra apenas os 10 primeiros nós para não poluir a tela
+            st.write(periphery[:10]) 
+            st.markdown("""
+            A **periferia** é o conjunto de nós que estão nas "bordas" da rede. Tecnicamente, 
+            são os nós com a maior excentricidade (a distância máxima para qualquer outro nó).
+            """)
+
+        except Exception as e:
+            st.error(f"Não foi possível calcular o diâmetro/periferia: {e}")
+    else:
+        st.info("Grafo vazio, não é possível calcular diâmetro ou periferia.")
+
 
     # --- Centralidade dos Nós ---
     st.markdown("---")
@@ -282,7 +351,17 @@ def analyze_network(graph):
             st.warning(f"Não foi possível calcular a Centralidade de Vetor Próprio: {e}. Isso pode ocorrer em grafos desconectados ou muito esparsos.")
     else:
         st.info("Não é possível calcular métricas de centralidade para um grafo vazio ou sem arestas.")
-
+        
+    # --- Matriz de Adjacência ---
+    st.markdown("---")
+    st.subheader("Matriz de Adjacência")
+    if graph.number_of_nodes() > 0:
+        adj_matrix = nx.to_numpy_array(graph)
+        st.write("A matriz de adjacência representa as conexões diretas entre os nós.")
+        st.dataframe(pd.DataFrame(adj_matrix, index=graph.nodes(), columns=graph.nodes()))
+        st.info("Nota: A matriz pode ser muito grande para visualização completa em redes densas.")
+    else:
+        st.warning("Não há nós na rede para gerar a matriz de adjacência.")
 
 # --- Configurações do Streamlit e Interface do Usuário ---
 
@@ -291,21 +370,20 @@ st.set_page_config(page_title="Analisador de Redes da Wikipedia", layout="wide")
 st.title("🌐 Analisador e Visualizador de Redes da Wikipedia")
 st.markdown("""
 Esta aplicação permite explorar redes complexas baseadas em páginas da Wikipedia.
-Insira o título de uma página para visualizar suas conexões e obter análises estatísticas.
+Utilziamos a pagina "Star Wars" para visualizar suas conexões e obter análises estatísticas.
 """)
 
 if 'graph' not in st.session_state:
     st.session_state.graph = nx.Graph()
-if 'seed_page_title' not in st.session_state:
-    st.session_state.seed_page_title = "Python (linguagem de programação)"
+    st.session_state.seed_page_title = "Star Wars"
+    
 
 with st.sidebar:
     st.header("Configurações da Rede")
-    page_title_input = st.text_input("Título da Página da Wikipedia:", st.session_state.seed_page_title)
+    st.text("max nodes = 2000")
+    st.text("Titulo da pagina inicial: Star Wars")
+
     
-
-    max_nodes = st.slider("Número Máximo de Nós", 50, 2000, 500)
-
     st.markdown("---")
     st.header("Visualização da Rede")
     graph_display_option = st.radio(
@@ -315,19 +393,32 @@ with st.sidebar:
     )
 
     if st.button("Gerar Rede e Análise"):
-        if page_title_input:
-            st.session_state.seed_page_title = page_title_input
-            with st.spinner("Construindo a rede... Isso pode levar um tempo para páginas grandes."):
-                st.session_state.graph = build_network_from_wikipedia(
-                    st.session_state.seed_page_title, max_nodes
-                )
-            if st.session_state.graph.number_of_nodes() > 0:
-                st.success("Rede construída com sucesso!")
-            else:
-                st.warning("Não foi possível construir a rede. Verifique o título da página ou os parâmetros.")
+        max_nodes =2000
+        # Define um nome de arquivo dinâmico baseado nos parâmetros
+        filename = f"{st.session_state.seed_page_title.replace(' ', '_')}_{max_nodes}_nodes.graphml"
+
+        # VERIFICA SE O GRAFO JÁ EXISTE LOCALMENTE
+        if os.path.exists(filename):
+            with st.spinner(f"Carregando rede pré-existente de '{filename}'..."):
+                st.session_state.graph = nx.read_graphml(filename)
+            st.success(f"Rede carregada do arquivo local '{filename}'!")
+        
+        # SE NÃO EXISTIR, CONSTRÓI E SALVA O GRAFO
         else:
-            st.warning("Por favor, insira o título de uma página da Wikipedia.")
-    
+            with st.spinner(f"Construindo a rede com até {max_nodes} nós (primeira vez)... Isso pode demorar."):
+                st.session_state.graph =  build_network_from_wikipedia(
+                    st.session_state.seed_page_title, max_nodes, 2
+                )
+
+
+            # Após construir, verifica se deu certo e salva
+            if st.session_state.graph.number_of_nodes() > 0:
+                with st.spinner(f"Salvando rede em '{filename}' para uso futuro..."):
+                    nx.write_graphml(st.session_state.graph, filename)
+                st.success(f"Rede construída e salva localmente como '{filename}'!")
+            else:
+                st.warning("Não foi possível construir a rede. Nenhum arquivo foi salvo.")
+
     st.markdown("---")
     st.info("""
     **Dicas:**

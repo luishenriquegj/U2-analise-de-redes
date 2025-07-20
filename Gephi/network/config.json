@@ -1,0 +1,53 @@
+{
+  "type": "network",
+  "version": "1.0",
+  "data": "data.json",
+  "logo": {
+    "file": "",
+    "link": "",
+    "text": ""
+  },
+  "text": {
+    "more": "O acervo de dados deste projeto consiste numa rede  extraída da Wikipédia em português. Ao invés de dados estáticos, essa rede é montada dinamicamente com base nos artigos referenciadas por link a partir de um artigo inicial sobre Star Wars.\nPara obter os dados, empregamos um sistema automatizado de navegação (web crawl), que opera da seguinte forma:\n\nO processo começa com uma página inicial, neste caso, \"Star Wars\".\n\nO algoritmo examina o conteúdo desta página e identifica todos os links que direcionam para outros artigos dentro da Wikipédia.\n\nUm link (aresta) é criado entre a página original e a página de destino, e cada artigo para o qual se aponta é adicionado à rede como um novo ponto (nó).\n\nUtilizamos a Busca em Largura (BFS), e esse processo é repetido em larga escala, explorando as páginas recém-descobertas e seguindo seus respectivos links.\n",
+    "intro": "O acervo de dados deste projeto consiste numa rede  extraída da Wikipédia em português. ",
+    "title": "Star_Wars_Network"
+  },
+  "legend": {
+    "edgeLabel": "link entre artigos",
+    "colorLabel": "",
+    "nodeLabel": "Artigos da wikipedia relaciondos a star wars"
+  },
+  "features": {
+    "search": true,
+    "groupSelectorAttribute": false,
+    "hoverBehavior": "default"
+  },
+  "informationPanel": {
+    "groupByEdgeDirection": false,
+    "imageAttribute": false
+  },
+  "sigma": {
+    "drawingProperties": {
+      "defaultEdgeType": "curve",
+      "defaultHoverLabelBGColor": "#002147",
+      "defaultLabelBGColor": "#ddd",
+      "activeFontStyle": "bold",
+      "defaultLabelColor": "#000",
+      "labelThreshold": 10,
+      "defaultLabelHoverColor": "#fff",
+      "fontStyle": "bold",
+      "hoverFontStyle": "bold",
+      "defaultLabelSize": 14
+    },
+    "graphProperties": {
+      "maxEdgeSize": 0.5,
+      "minEdgeSize": 0.2,
+      "minNodeSize": 1,
+      "maxNodeSize": 7
+    },
+    "mouseProperties": {
+      "maxRatio": 20,
+      "minRatio": 0.75
+    }
+  }
+}

@@ -49,3 +49,11 @@ Observações
     Páginas de Desambiguação: O módulo wikipedia pode encontrar páginas de desambiguação. O script tenta resolver isso automaticamente, mas em casos complexos, ele pode pular links ambíguos para evitar travamentos.
 
     Grafos Não Dirigidos: A rede é construída como um grafo não dirigido (networkx.Graph). Métricas como Componentes Fortemente Conectados (SCCs) são mais relevantes para grafos dirigidos, e isso é observado na análise.
+
+# Para rodar o a visualização do Gephi, voce precisará:
+
+1. acessar a pasta Gephi dentro deste projeto com o CMD/terminal
+2. rodar o comando python3 -m http.server   
+        No seu terminal voce deve ver algo parecido com isso:
+        \U2-analise-de-redes\Gephi> python3 -m http.server
+3. em seguida abra seu navegador e digite na barra de pesquisa http://localhost:8000/
