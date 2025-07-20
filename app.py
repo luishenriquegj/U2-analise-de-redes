@@ -394,12 +394,6 @@ with st.sidebar:
                 st.warning("Não foi possível construir a rede. Nenhum arquivo foi salvo.")
 
     st.markdown("---")
-    st.info("""
-    **Dicas:**
-    - Aumentar o **Número Máximo de Nós** fará com que a busca por links explore mais camadas,
-      mas também aumentará o tempo de processamento e o uso de memória.
-    - Páginas muito populares podem gerar grafos enormes e lentos para renderizar.
-    """)
 
 if st.session_state.graph.number_of_nodes() > 0:
     st.write("---")
