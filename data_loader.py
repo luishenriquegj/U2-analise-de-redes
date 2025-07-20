@@ -77,7 +77,7 @@ def build_network_from_wikipedia(seed_page_title, max_nodes=100, max_depth=2):
             # Normaliza o link para verificação
             normalized_link = link.lower().strip()
 
-            # --- APLICA OS FILTROS DA BLACKLIST ---
+            # --- APLICA OS FILTROS  ---
             # 1. Ignora se for um número (geralmente um ano)
             if normalized_link.isnumeric():
                 continue

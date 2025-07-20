@@ -155,7 +155,7 @@ def analyze_network(graph):
     
     if graph.number_of_nodes() > 2:
         
-        node_list = sorted(list(graph.nodes())) # Ordena a lista para facilitar a busca
+        node_list = sorted(list(graph.nodes())) 
         selected_node = st.selectbox(
             "Escolha um nó para calcular seu Coeficiente de Clustering Local:", 
             options=node_list
@@ -188,23 +188,11 @@ def analyze_network(graph):
     
     st.info("⚠️ **Componentes Fortemente Conectados (SCCs)** são aplicáveis a **grafos dirigidos**. A rede da Wikipedia que estamos gerando está sendo tratada como **não dirigida** neste contexto.")
 
-    # --- Distribuição de Grau ---
-    st.markdown("---")
-    st.subheader("Distribuição de Grau da Rede")
-
-    
-
-    all_degrees = [degree for node, degree in graph.degree()]
-
 # --- Distribuição de Grau ---
-
     st.markdown("---")
-
     st.subheader("Distribuição de Grau da Rede")
 
-
     all_degrees = [degree for node, degree in graph.degree()]
-
 
     if all_degrees:
         min_degree = min(all_degrees)
@@ -243,22 +231,8 @@ def analyze_network(graph):
 
     else:
 
-        print("Não há graus para plotar (grafo sem nós ou arestas).")
+        print("Não há graus para plotar (grafo sem nós ou arestas).")    
 
-
-        st.markdown("""
-
-        O **Histograma da Distribuição de Grau** mostra a frequência com que cada grau (número de conexões)
-
-        aparece na rede.
-
-        - Em redes como a Wikipedia (muitas vezes consideradas redes de mundo pequeno ou livres de escala),
-
-            é comum ver muitos nós com poucos graus e poucos nós (os "hubs") com graus muito altos,
-
-            resultando em uma distribuição com uma "cauda longa" para a direita.
-
-        """)      
     # --- Diâmetro e Periferia ---
     st.markdown("""
     O **Histograma da Distribuição de Grau** mostra a frequência com que cada grau (número de conexões)
