@@ -112,7 +112,7 @@ def analyze_network(graph):
         * Um link (aresta) é criado entre a página original e a página de destino, e cada artigo para o qual se aponta é adicionado à rede como um novo ponto (nó).
         * Utilizamos a Busca em Largura (BFS), e esse processo é repetido em larga escala, explorando as páginas recém-descobertas e seguindo seus respectivos links.
 
-        Para controlar a expansão da rede e garantir que seja viável executar essa análise e o tamanho da rede gerenciável, utilizamos um limite máximo para o número de nós. O resultado final é um "snapshot" da vizinhança de links relacionados a "Star Wars", que é
+        Para controlar a expansão da rede e garantir que seja viável executar essa análise e o tamanho da rede gerenciável, utilizamos um limite máximo para o número de nós. O resultado final é um "snapshot" da vizinhança de links relacionados a "Star Wars".
     """)
 
     st.subheader("Estatísticas Descritivas da Rede")
