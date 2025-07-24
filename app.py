@@ -64,7 +64,7 @@ def visualize_network(graph, seed_page_title="", graph_type="full"):
         # Roda o algoritmo Louvain para encontrar a melhor partição (comunidades)
         partition = community_louvain.best_partition(display_graph, random_state=42)
         num_communities = len(set(partition.values()))
-        st.success(f"utilizando o algoritmo Louvian, foram detectadas **{num_communities} comunidades** na rede")
+        st.success(f"utilizando o algoritmo Louvain, foram detectadas **{num_communities} comunidades** na rede")
     # --- FIM DA DETECÇÃO ---
 
     net = Network(notebook=True, height="750px", width="100%", directed=False, cdn_resources='remote')
