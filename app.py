@@ -64,7 +64,7 @@ def visualize_network(graph, seed_page_title="", graph_type="full"):
         # Roda o algoritmo Louvain para encontrar a melhor partição (comunidades)
         partition = community_louvain.best_partition(display_graph, random_state=42)
         num_communities = len(set(partition.values()))
-        st.success(f"utilizando o algoritmo Louvain, foram detectadas **{num_communities} comunidades** na rede")
+        st.success(f"utilizando o algoritmo Louvian, foram detectadas **{num_communities} comunidades** na rede")
     # --- FIM DA DETECÇÃO ---
 
     net = Network(notebook=True, height="750px", width="100%", directed=False, cdn_resources='remote')
@@ -100,6 +100,20 @@ def analyze_network(graph):
     if not graph.nodes:
         st.warning("Não há dados para análise. O grafo está vazio.")
         return
+    st.write("---")
+    st.subheader('Introdução')
+    st.markdown("""
+        O projeto tem como objetivo extrair e analisar uma rede de conhecimento da Wikipédia em português. A análise parte do artigo "Star Wars" para mapear dinamicamente as conexões entre artigos relacionados, revelando a estrutura, os temas centrais e as comunidades de informação que se formam em torno desse universo.
+
+        Para obter os dados, empregamos um sistema automatizado de navegação (web crawl), que opera da seguinte forma:
+
+        * O processo começa com uma página inicial, neste caso, "Star Wars".
+        * O algoritmo examina o conteúdo desta página e identifica todos os links que direcionam para outros artigos dentro da Wikipédia.
+        * Um link (aresta) é criado entre a página original e a página de destino, e cada artigo para o qual se aponta é adicionado à rede como um novo ponto (nó).
+        * Utilizamos a Busca em Largura (BFS), e esse processo é repetido em larga escala, explorando as páginas recém-descobertas e seguindo seus respectivos links.
+
+        Para controlar a expansão da rede e garantir que seja viável executar essa análise e o tamanho da rede gerenciável, utilizamos um limite máximo para o número de nós. O resultado final é um "snapshot" da vizinhança de links relacionados a "Star Wars", que é
+    """)
 
     st.subheader("Estatísticas Descritivas da Rede")
     num_nodes = graph.number_of_nodes()
@@ -396,7 +410,6 @@ with st.sidebar:
     st.markdown("---")
 
 if st.session_state.graph.number_of_nodes() > 0:
-    st.write("---")
     st.subheader("Visualização da Rede")
 
     html_to_display = "" 
